@@ -1,4 +1,5 @@
 from prefect import flow, task
+from prefect.states import Failed, Completed
 from client.api_clima import CPTECApiCaller
 import psycopg2
 from psycopg2 import sql
@@ -40,7 +41,7 @@ def create_tables(connection):
     try:
         with connection.cursor() as cursor:
             cursor.execute('''
-            CREATE TABLE metar(
+            CREATE TABLE clima_schema.metar(
                 estacao VARCHAR(4) PRIMARY KEY,
                 data DATE DEFAULT CURRENT_DATE,
                 pressao FLOAT,
@@ -54,7 +55,7 @@ def create_tables(connection):
             ''')
 
             cusror.execute('''
-            CREATE TABLE pred_estacao (
+            CREATE TABLE clima_schema.pred_estacao (
                 cidade VARCHAR(255) PRIMARY KEY,
                 data DATE DEFAULT CURRENT_DATE,
                 dia DATE,
@@ -70,19 +71,61 @@ def create_tables(connection):
         return False
 
 @task
-def get_lattest_data(caller: CPTECApiCaller, connection):
+def add_lattest_metar_data(caller: CPTECApiCaller, connection):
     try:
         tempo_atual = caller.get_condicao_estacao()
         query = '''
-            INSERT INTO clima_schema.metar
-            '''
+        INSERT INTO clima_schema.metar
+        '''
         query = query.join(list(tempo_atual.keys()))
         query += 'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)'
         data = [item for _, item in tempo_atual.items()]
         with connection.cursor() as cursor:
             cursor.execute(query, data)
-        return True
-        
+        return True 
+
     except Exception as e:
         logger.error(f'Error adding items to the table: {e}')
         return False
+
+@task
+def add_lattest_previsao_data(caller: CPTECApiCaller, connection,  cidade:str = 'Recife'):
+    try:
+        previsao = caller.get_previsao(cidade)
+        previsao = [cidade]
+        query = '''
+        INSERT INTO clima_schema.pred_estacao
+        '''
+        query = query.join(list(previsao.keys()))
+        query += 'VALUES (%s, %s, %s, %s, %s, %s, %s)'
+        with connection.cursor
+
+
+@task
+def db_creation(connection):
+    return create_db(connection) and create_schema(connection) and create_tables(connection)
+
+@flow(log_prints  = True)
+def checker_flow():
+    connection = psycopg2.connect(**DB)
+    checker = check_db(connection)
+    
+    if checker:
+        return connection
+    
+    if db_creation(connection):
+        return connection
+
+    return None
+
+@flow(log_prints  = True)
+def add_data_metar_flow(caller, connection):
+    return add_lattest_metar_data(caller, connection)
+
+@flow(log_prints = True)
+def add_data_previsao_flow(caller, connection)
+    return add_
+
+if __name__ == '__main__':
+    check = checker_flow
+    if check:

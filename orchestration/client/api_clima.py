@@ -67,6 +67,7 @@ class CPTECApiCaller:
         
         previsoes = soup.find_all('previsao')
         previsoes_dict = {}
+        previsao_retorno = []
 
         for previsao in previsoes:
             previsoes_dict['data'] = (
@@ -76,15 +77,25 @@ class CPTECApiCaller:
                 previsao.find('minima').text,
                 previsao.find('iuv').text
             )
+            previsao_retorno.append([
+                cidade,
+                data,
+                previsao.find('dia').text,
+                previsao.find('tempo').text,
+                previsao.find('maxima').text,
+                previsao.find('minima').text,
+                previsao.find('iuv').text 
+            ])
+
 
         previsao_hoje = {data:previsoes_dict}
 
         if cidade not in self.previsao_temperatura:
-            self.previsoes[cidade] = [previsoes_hoje]
+            self.previsoes[cidade] = [previsao_hoje]
         else:
             self.previsoes[cidade].append(previsao_hoje)
 
-        return previsao_hoje
+        return previsao_retorno
     
     def get_iuv(self, cidade: str = 'Recife') -> Dict[str, Any]:
         with httpx.Client() as client:

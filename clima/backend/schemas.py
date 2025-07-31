@@ -12,6 +12,9 @@ class Metar(BaseModel):
     vento_int: float = Field(...)
     visibilidade: float = Field(...)
 
+class Metars(BaseModel):
+    items: List[Metar] = Field(...)
+
 class Previsao(BaseModel):
     cidade: str = Field(...)
     data: str = Field(...)
@@ -44,3 +47,22 @@ class RestrictionPrevisao(BaseModel):
     maxima: Optional[str] = None
     minima: Optional[str] = None
     iuv: Optional[str] = None
+
+class StatusMessage(BaseModel):
+    status: bool = Field(...)
+
+class DistribuicaoMetar(BaseModel):
+    estacao: str = Field(...)
+    data: str = Field(...)
+    pressao: float = Field(...)
+    temperatura: float = Field(...)
+    tempo: int = Field(...)
+    umidade: float = Field(...)
+    vento_dir_seno: float = Field(...)
+    vento_dir_cosseno: float = Field(...)
+    vento_int: float = Field(...)
+    umidade: float = Field(...)
+    visibilidade: float = Field(...)
+
+class DistribuicoesMetar(BaseModel):
+    items: List[DistribuicaoMetar] = Field(...)

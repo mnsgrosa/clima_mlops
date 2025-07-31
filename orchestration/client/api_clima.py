@@ -6,11 +6,7 @@ import psycopg2
 from config import DB
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
-
-class DBHandler:
-    def __init__(self, config):
-        self.config = config
-        self.logger = logging.getLogger(__name__)
+from db_handler import DBHandler
 
 class CPTECApiCaller(DBHandler):
     def __init__(self, config):
@@ -21,25 +17,6 @@ class CPTECApiCaller(DBHandler):
         self.condicoes_estacoes = {}
         self.previsao_temperatura = {}
         self.iuvs = {}
-    
-    def get_cursor(self):
-        connetion = None
-        cursor = None
-
-        try:
-            connection = psycopg2.connect(**self.config)
-            cursor = connection.cursor()
-
-            yield cursor
-
-            connection.commit()
-        except Exception as e:
-            self.logger.error('Error while using the cursor')
-        finally:
-            if cursor:
-                cursor.close()
-            if connection:
-                connection.close()
 
     def scrape_cidades(self) -> List[Dict[str, str]]:
         with httpx.Client() as client:
@@ -86,7 +63,7 @@ class CPTECApiCaller(DBHandler):
 
     def get_previsao(self, cidade: str = 'Recife') -> Dict[str, Any]:
         with httpx.Client() as client:
-            response = client.get(self.url + f"/cidade/{self.cidades_dict[cidade]['id']}/previsao.xml")
+            response = client.get(self.url + f"/cidade/{self.get_code_cidade(cidade)}/previsao.xml")
             response.raise_for_status()
         
         soup = BeautifulSoup(response.text)
@@ -125,8 +102,9 @@ class CPTECApiCaller(DBHandler):
         return previsao_retorno
     
     def get_iuv(self, cidade: str = 'Recife') -> Dict[str, Any]:
+        cidade.capitalize()
         with httpx.Client() as client:
-            response = client.get(self.url + f"/cidade/{self.cidades_dict[cidade]['id']}/dia/0/ondas.xml")
+            response = client.get(self.url + f"/cidade/{self.get_code_cidade(cidade)}/dia/0/ondas.xml")
             response.raise_for_status()
 
         soup = BeautifulSoup(response.text)
@@ -142,13 +120,3 @@ class CPTECApiCaller(DBHandler):
             self.iuvs[cidade].append(data)
         
         return data
-
-    def get_from_db(self, table:str, columns: List[str] = '*'):
-        query = f'''
-            SELECT {' '.join(columns)} FROM {table}
-        '''
-        
-        with self.get_cursor() as cursor:
-            data = cursor.execute(query)
-        return data
-        

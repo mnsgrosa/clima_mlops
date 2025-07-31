@@ -1,59 +1,75 @@
-from prefect import flow, task
-from prefect.states import Failed, Completed
-from datetime import datetime
-import httpx
+from prefect import deploy
+from prefect.server.schemas.schedules import CronSchedule
+from flows import metar_flow, previsao_flow, decision_flow, train_min_flow, train_max_flow
 
-@task
-def get_lattest_metar_data(caller: CPTECApiCaller):
-    return caller.get_condicao_estacao()
-    
-@task
-def add_lattest_metar_data(caller: CPTECApiCaller, data):
-    # httpx logic here
-    pass
+async def create_deployments():
+    work_pool_name = 'clima-ops'
 
-@task
-def get_lattest_previsoes_data(caller: CPTECApiCaller, cidade:str = 'Recife'):
-    return caller.get_previsao(cidade)
+    metar = await metar_flow.from_source(
+        source = '.',
+        entrypoint = 'orchestrate.py:metar_flow'
+    ).deploy(
+        name = 'metar-flow',
+        work_pool_name = work_pool_name,
+        work_queue_name = 'metar-queue',
+        schedule = CronSchedule(
+            cron = '0 * * * *',
+            timezone = 'UTC'
+        )
+    )
 
-@task
-def add_lattest_previsao_data(caller: CPTECApiCaller, data):
-    if data is None:
-        caller.logger.error(f'No previsao data received: {datetime.now()}')
-        return False
+    previsao = await previsao_flow.from_source(
+        source = '.',
+        entrypoint = 'orchestrate.py:previsao_flow'
+    ).deploy(
+        name = 'previsao-flow',
+        work_pool_name = work_pool_name,
+        work_queue_name = 'previsao-queue',
+        schedule = CronSchedule(
+            cron = '0 12 * * *',
+            timezone = 'UTC'
+        )
+    )
 
-    caller.logger.info(f'Start of upsert of previsoes data at: {datetime.now()}')
-    try:
-        caller.upsert_multiple_data('pred_estacao', list(data.keys()), list(data.values))
-        caller.logger.info(f'Done of upsert of previsoes data at: {datetime.now()}')
-        return True
-    except Exception as e:
-        caller.logger.error(f'Error of upsert of previsoes data at: {datetime.now()}: {e}')
-        return False
+    decision = await decision_flow.from_source(
+        source = '.',
+        entrypoint = 'orchestrate.py:decision_flow'
+    ).deploy(
+        name = 'decision-flow',
+        work_pool_name = work_pool_name,
+        work_queue_name = 'decision-queue',
+        schedule = CronSchedule(
+            cron = '0 0 * * *',
+            timezone = 'UTC'
+        )
+    )
 
-@flow(log_prints  = True)
-def caller_creation_flow():
-    return init_class()
-
-@flow(log_prints  = True)
-def metar_flow(caller):
-    caller.logger.info('Starting metar flow')
-    data = get_lattest_metar_data(caller)
-    caller.logger.info(f'Got the data: {len(data)}')
-    if add_lattest_metar_data(caller, data):
-        return Completed(message = 'New metar data added')
-    return Failed(message = 'Failed to add new metar data')
-
-@flow(log_prints = True)
-def previsao_flow(caller):
-    caller.logger.info('Starting previsao flow')
-    data = get_lattest_previsoes_data(caller)
-    caller.logger.info(f'Got the data: {len(data)}')
-    if add_lattest_previsao_data(caller, data):
-        return Completed(message = 'New previsao data added')
-    return Failed(message = 'Failed to add new previsao data')
+    if decision:
+        train_min = await train_min_flow.from_source(
+            source = '.',
+            entrypoint = 'orchestrate.py:train_min_flow'
+        ).deploy(
+            name = 'train-min-flow',
+            work_pool_name = work_pool_name,
+            work_queue_name = 'train-min-queue',
+            schedule = CronSchedule(
+                cron = '0 0 * * *',
+                timezone = 'UTC'
+            )
+        )
+        
+        train_max_flow = await train_max_flow.from_source(
+            source = '.',
+            entrypoint = 'orchestrate.py:train_max_flow'
+        ).deploy(
+            name = 'train-max-flow',
+            work_pool_name = work_pool_name,
+            work_queue_name = 'train-max-queue',
+            schedule = CronSchedule(
+                cron = '0 0 * * *',
+                timezone = 'UTC'
+            )
+        )
 
 if __name__ == '__main__':
-    caller = caller_creation_flow()
-    metar_flow(caller)
-    previsao_flow(caller)
+    asyncio.run(create_deployments())

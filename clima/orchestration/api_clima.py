@@ -33,7 +33,7 @@ class CPTECApiCaller:
         
         return cidades_dict
 
-    def get_metar(self, estacao = 'SBRF'):
+    def get_metar(self, estacao = 'SBRF') -> Dict[str, Any]:
         self.logger.info('Getting weather conditions')
         try:
             self.logger.info('Starting the request')

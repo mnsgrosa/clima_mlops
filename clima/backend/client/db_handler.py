@@ -1,5 +1,6 @@
 import psycopg2
 import logging
+import pandas as pd
 from typing import List, Dict, Any
 
 class DBHandler:
@@ -17,6 +18,10 @@ class DBHandler:
             self.create_db()
             self.create_schema()
             self.create_tables()
+
+        self.columns_metar = ['estacao', 'data', 'pressao', 'temperatura', 'tempo', 'tempo_desc', 'umidade', 'vento_dir', 'vento_int', 'visibilidade']
+        self.columns_pred = ['cidade', 'data', 'dia', 'tempo', 'maxima', 'minima', 'iuv']
+        self.columns_cidades = ['cidade', 'uf', 'id']
     
     def init_logger(self):
         logger = logging.getLogger(__name__)
@@ -90,6 +95,8 @@ class DBHandler:
                 cursor.execute(query)
                 data = cursor.fetchall()
             self.logger.info(f'Got {len(data)} rows from {table}')
+            columns = list(data[0].keys())
+            data = pd.DataFrame(columns = columns, data = data)
             return data
         except Exception as e:
             self.logger.error(f'Error getting data from {table}: {e}')
@@ -144,9 +151,9 @@ class DBHandler:
                     tempo VARCHAR(4),
                     temp_desc VARCHAR(255),
                     umidade FLOAT,
-                    vento_dir VARCHAR(255),
+                    vento_dir INT,
                     vento_int FLOAT,
-                    visibilidade INT
+                    visibilidade FLOAT
                 )
                 ''')
 
@@ -160,6 +167,18 @@ class DBHandler:
                     temp_max FLOAT,
                     iuv FLOAT
                     FOREIGN KEY (cidade) REFERENCES {self.schema}.cidades(cidade)
+                ''')
+
+                cursor.execute(f'''
+                CREATE TABLE {self.schema}.distribuicoes_metar (
+                    estacao VARCHAR(4),
+                    pressao FLOAT,
+                    tempo INT,
+                    vento_dir_seno FLOAT,
+                    vento_dir_cosseno FLOAT,
+                    umidade FLOAT,
+                    visibilidade FLOAT
+                )
                 ''')
 
             self.logger.info(f'Tables created @ {self.dbname} {self.schema}')

@@ -171,11 +171,12 @@ class DBHandler:
 
                 cursor.execute(f'''
                 CREATE TABLE {self.schema}.distribuicoes_metar (
-                    estacao VARCHAR(4),
                     pressao FLOAT,
-                    tempo INT,
+                    temperatura FLOAT,
+                    tempo FLOAT,
                     vento_dir_seno FLOAT,
                     vento_dir_cosseno FLOAT,
+                    vento_int FLOAT,
                     umidade FLOAT,
                     visibilidade FLOAT
                 )

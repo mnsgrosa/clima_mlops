@@ -2,17 +2,44 @@ import httpx
 import json
 import pandas as pd
 import logging
+import psycopg2
+from config import DB
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 
-class CPTECApiCaller:
-    def __init__(self):
+class DBHandler:
+    def __init__(self, config):
+        self.config = config
+        self.logger = logging.getLogger(__name__)
+
+class CPTECApiCaller(DBHandler):
+    def __init__(self, config):
+        super.__init__(config)
         self.url_base = 'http://servicos.cptec.inpe.br/XML'
+        self.config = db
         self.cidades_dict = self.scrape_cidades()
         self.condicoes_estacoes = {}
         self.previsao_temperatura = {}
         self.iuvs = {}
-        self.logger = logging.getLogger(__name__)
+    
+    def get_cursor(self):
+        connetion = None
+        cursor = None
+
+        try:
+            connection = psycopg2.connect(**self.config)
+            cursor = connection.cursor()
+
+            yield cursor
+
+            connection.commit()
+        except Exception as e:
+            self.logger.error('Error while using the cursor')
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
 
     def scrape_cidades(self) -> List[Dict[str, str]]:
         with httpx.Client() as client:
@@ -115,3 +142,13 @@ class CPTECApiCaller:
             self.iuvs[cidade].append(data)
         
         return data
+
+    def get_from_db(self, table:str, columns: List[str] = '*'):
+        query = f'''
+            SELECT {' '.join(columns)} FROM {table}
+        '''
+        
+        with self.get_cursor() as cursor:
+            data = cursor.execute(query)
+        return data
+        

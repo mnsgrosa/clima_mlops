@@ -49,21 +49,10 @@ class DBHandler:
             if connection:
                 connection.close()
 
-    def prepare_insertion_query(self, table, columns):
-        self.logger.info(f'Starting the creation of insertion query @ {table} with {columns}')
-        query = f'INSERT INTO {table} '
-        query = query.join(columns)
-        query += 'VALUES ('
-        for item in columns:
-            query += '%s, '
-        query += ')'
-        self.logger.info(f'Done the creation of the following query:{query}')
-        return query
-    
     def insert_one(self, table, columns, value):
         try:
             self.logger.info(f'Starting the insertion @ {table} with {columns} of 1 row')
-            query = self.prepare_query(table, columns)
+            query = self.create_upsert_query(table, columns)
             with self.get_cursor() as cursor:
                 cursor.execute(query, value)
             self.logger.info(f'Done the insertion of {value}')
@@ -75,7 +64,7 @@ class DBHandler:
     def insert_multiple(self, table, columns, values):
         try:
             self.logger.info(f'Starting the insertion @ {table} with {columns} of {len(values)} rows')
-            query = self.prepare_query(table, columns)
+            query = self.create_upsert_query(table, columns)
             with self.get_cursor() as cursor:
                 cursor.executemany(query, values)
             self.logger.info(f'Done the insertion @ {len(values)} rows')
@@ -84,10 +73,19 @@ class DBHandler:
             self.logger.error(f'Error inserting @ {table} with {columns} of {len(values)} rows: {e}')
             return False
 
-    def get_data(self, table, columns, table):
+    def get_data(self, table, table, columns, restriction: Dict[str, str]):
         try:
             self.logger.info(f'Getting data from {columns} from {table}')
-            query = f"SELECT {' '.join(columns)} FROM {table}"
+            if columns is None:
+                query = f"SELECT * FROM {self.schema}.{table}"
+            else:
+                query = f"SELECT {' '.join(columns)} FROM {self.schema}.{table}"
+            
+            if value is not None:
+                query += f' WHERE'
+                for column, value in value.items():
+                    query += f' {column} = {value}'
+
             with self.get_cursor() as cursor:
                 cursor.execute(query)
                 data = cursor.fetchall()

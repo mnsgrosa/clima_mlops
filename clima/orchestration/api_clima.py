@@ -8,9 +8,8 @@ from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 from db_handler import DBHandler
 
-class CPTECApiCaller(DBHandler):
+class CPTECApiCaller:
     def __init__(self, config):
-        super.__init__(config)
         self.url_base = 'http://servicos.cptec.inpe.br/XML'
         self.config = db
         self.cidades_dict = self.scrape_cidades()
@@ -34,31 +33,39 @@ class CPTECApiCaller(DBHandler):
         
         return cidades_dict
 
-    def get_condicao_estacao(self, estacao = 'SBRF'):
-        with httpx.Client() as client:
-            response = client.get(self.url + f'/estacao/{estacao}/condicoesAtuais.xml')
-            response.raise_for_status()
-        
-        soup = BeautifulSoup(response.text)
-        metar = soup.find('METAR')
+    def get_metar(self, estacao = 'SBRF'):
+        self.logger.info('Getting weather conditions')
+        try:
+            self.logger.info('Starting the request')
+            with httpx.Client() as client:
+                response = client.get(self.url + f'/estacao/{estacao}/condicoesAtuais.xml')
+                response.raise_for_status()
+            
+            self.logger.info('Request done')
+            soup = BeautifulSoup(response.text)
+            metar = soup.find('METAR')
+    
+            tempo = {
+                    'estacao': estacao,
+                    'data': metar.find('atualizacao').text,
+                    'pressao': metar.find('pressao').text,
+                    'temperatura': metar.find('temperatura').text,
+                    'tempo': metar.find('tempo').text,
+                    'tempo_desc': metar.find('tempo_desc').text,
+                    'umidade': metar.find('umidade').text,
+                    'vento_dir': metar.find('vento_dir').text,
+                    'vento_int': metar.find('vento_int').text,
+                    'visibilidade': metar.find('visibilidade').text
+            }
 
-        tempo = {
-                'data': metar.find('atualizacao').text,
-                'pressao': metar.find('pressao').text,
-                'temperatura': metar.find('temperatura').text,
-                'tempo': metar.find('tempo').text,
-                'tempo_desc': metar.find('tempo_desc').text,
-                'umidade': metar.find('umidade').text,
-                'vento_dir': metar.find('vento_dir').text,
-                'vento_int': metar.find('vento_int').text,
-                'visibilidade': metar.find('visibilidade').text
-        }
-
-        if estacao not in self.condicoes_estacoes:
-            self.condicoes_estacoes[estacao] = [tempo]
-        else:
-            self.condicoes_estacoes[estacao].append(tempo)
-
+            if estacao not in self.condicoes_estacoes:
+                self.condicoes_estacoes[estacao] = [tempo]
+            else:
+                self.condicoes_estacoes[estacao].append(tempo)
+            self.logger.info('Got the info')
+        except Exception as e:
+            self.logger.error(f'Error getting the info: {e}')
+            tempo = []
         return tempo
 
     def get_previsao(self, cidade: str = 'Recife') -> Dict[str, Any]:

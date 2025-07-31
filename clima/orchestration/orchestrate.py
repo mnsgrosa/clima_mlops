@@ -1,15 +1,7 @@
 from prefect import flow, task
 from prefect.states import Failed, Completed
-from client.api_clima import CPTECApiCaller
 from datetime import datetime
-from client.config import DB
-import psycopg2
-from psycopg2 import sql
-import logging
-
-@task
-def init_class():
-    return CPTECApiCaller(DB)
+import httpx
 
 @task
 def get_lattest_metar_data(caller: CPTECApiCaller):
@@ -17,18 +9,8 @@ def get_lattest_metar_data(caller: CPTECApiCaller):
     
 @task
 def add_lattest_metar_data(caller: CPTECApiCaller, data):
-    if data is None:
-        caller.logger.error(f'No metar data received: {datetime.now()}')
-        return False
-    
-    caller.logger.info(f'Start of upsert of metar data at: {datetime.now()}')
-    try:
-        caller.upsert_multiple_data('metar', list(data.keys()), list(data.values))
-        caller.logger.info(f'Done of upsert of metar data at: {datetime.now()}')
-        return True
-    except Exception as e:
-        caller.logger.error(f'Error of upsert of metar data at: {datetime.now()}: {e}')
-        return False
+    # httpx logic here
+    pass
 
 @task
 def get_lattest_previsoes_data(caller: CPTECApiCaller, cidade:str = 'Recife'):

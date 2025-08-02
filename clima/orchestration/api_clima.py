@@ -3,35 +3,12 @@ import json
 import pandas as pd
 import logging
 import psycopg2
-from config import DB
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
-from db_handler import DBHandler
 
 class CPTECApiCaller:
     def __init__(self, config):
         self.url_base = 'http://servicos.cptec.inpe.br/XML'
-        self.config = db
-        self.cidades_dict = self.scrape_cidades()
-        self.condicoes_estacoes = {}
-        self.previsao_temperatura = {}
-        self.iuvs = {}
-
-    def scrape_cidades(self) -> List[Dict[str, str]]:
-        with httpx.Client() as client:
-            response = client.get(self.url + '/listaCidades')
-            response.raise_for_status()
-
-        data = response.text
-        soup = BeautifulSoup(data, 'xml')
-        cidades = soup.find('cidades').find_all('cidade')
-
-        cidades_dict = {}
-
-        for cidade in cidades:
-            cidades_dict[cidade.find('nome').text] = {'uf':cidade.find('uf').text, 'id':cidade.find('id').text}
-        
-        return cidades_dict
 
     def get_metar(self, estacao = 'SBRF') -> Dict[str, Any]:
         self.logger.info('Getting weather conditions')
@@ -57,11 +34,7 @@ class CPTECApiCaller:
                     'vento_int': metar.find('vento_int').text,
                     'visibilidade': metar.find('visibilidade').text
             }
-
-            if estacao not in self.condicoes_estacoes:
-                self.condicoes_estacoes[estacao] = [tempo]
-            else:
-                self.condicoes_estacoes[estacao].append(tempo)
+            
             self.logger.info('Got the info')
         except Exception as e:
             self.logger.error(f'Error getting the info: {e}')
@@ -80,50 +53,17 @@ class CPTECApiCaller:
         previsoes_dict = {}
         previsao_retorno = []
 
-        for previsao in previsoes:
-            previsoes_dict['data'] = (
-                previsao.find('dia').text,
-                previsao.find('tempo').text,
-                previsao.find('maxima').text,
-                previsao.find('minima').text,
-                previsao.find('iuv').text
+        for distancia, previsao in enumerate(previsoes):
+            previsao_retorno.append({
+                'cidade':cidade,
+                'data':data,
+                'dia_previsao':previsao.find('dia').text,
+                'tempo':previsao.find('tempo').text,
+                'temp_min':previsao.find('minima').text,
+                'temp_max':previsao.find('maxima').text,
+                'iuv':previsao.find('iuv').text,
+                'diferenca_dias':distancia + 1
+                }
             )
-            previsao_retorno.append([
-                cidade,
-                data,
-                previsao.find('dia').text,
-                previsao.find('tempo').text,
-                previsao.find('maxima').text,
-                previsao.find('minima').text,
-                previsao.find('iuv').text 
-            ])
-
-
-        previsao_hoje = {data:previsoes_dict}
-
-        if cidade not in self.previsao_temperatura:
-            self.previsoes[cidade] = [previsao_hoje]
-        else:
-            self.previsoes[cidade].append(previsao_hoje)
-
+        
         return previsao_retorno
-    
-    def get_iuv(self, cidade: str = 'Recife') -> Dict[str, Any]:
-        cidade.capitalize()
-        with httpx.Client() as client:
-            response = client.get(self.url + f"/cidade/{self.get_code_cidade(cidade)}/dia/0/ondas.xml")
-            response.raise_for_status()
-
-        soup = BeautifulSoup(response.text)
-        data = {
-                'data':soup.find('data').text,
-                'hora':soup.find('hora').text,
-                'iuv':soup.find('iuv').text
-        }
-        
-        if cidade not in self.iuvs:
-            self.iuvs[cidade] = [data]
-        else:
-            self.iuvs[cidade].append(data)
-        
-        return data

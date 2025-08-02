@@ -23,12 +23,6 @@ def get_previsao(restricao: RestrictionPrevisao):
     obj = ResponseGet(df = df)
     return obj
 
-@app.get('/get/distribuicao', response_model = ResponseGet)
-def get_distribuicoes(cidade: str):
-    df = handler.get_data('distribuicoes_metar', restriction = {'cidade':cidade})
-    obj = ResponseGet(df = df)
-    return obj
-
 @app.post('/post/clima', response_model = StatusMessage)
 def post_metar(tempo: MetarsPost):
     try:
@@ -43,15 +37,6 @@ def post_previsao(previsoes: PrevisoesPost):
     try:
         colunas = previsao.items[0].model_fields.keys()
         ans = handler.upsert_multiple_data('pred_estacao', colunas, previsoes.model_dump())
-        return StatusMessage(status = ans)
-    except Exception as e:
-        return StatusMessage(status = ans, error = e)
-
-@app.post('/post/distribuicao', response_model = StatusMessage)
-def post_distribuicao(distribuicoes: DistribuicoesPost):
-    try:
-        columns = distribuicoes.items[0].model_fields.keys()
-        ans = handler.upsert_multiple_data('distribuicoes_metar', colunas, distribuicoes.model_dump())
         return StatusMessage(status = ans)
     except Exception as e:
         return StatusMessage(status = ans, error = e)

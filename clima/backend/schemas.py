@@ -1,19 +1,26 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Tuple, Dict, Any
+from pandas import DataFrame
 
-class Metar(BaseModel):
-    data: str = Field(...)
+class MetarPost(BaseModel):
+    estacao: str = Field(...)
+    dia: int = Field(...)
+    mes: int = Field(...)
+    ano: int = Field(...)
     pressao: float = Field(...)
     temperatura: float = Field(...)
     tempo: str = Field(...)
-    tempo_desc: str = Field(...)
     umidade: float = Field(...)
-    vento_dir: str = Field(...)
+    vento_dir_seno: float = Field(...)
+    vento_dir_cosseno: float = Field(...)
     vento_int: float = Field(...)
     visibilidade: float = Field(...)
 
-class Metars(BaseModel):
+class MetarsPost(BaseModel):
     items: List[Metar] = Field(...)
+
+class ResponseGet(BaseModel):
+    df: DataFrame = Field(...)
 
 class Previsao(BaseModel):
     cidade: str = Field(...)
@@ -23,19 +30,22 @@ class Previsao(BaseModel):
     maxima: float = Field(...)
     minima: float = Field(...)
     iuv: float = Field(...)
+    distancia: int = Field(...)
 
-class Previsoes(BaseModel):
+class PrevisoesPost(BaseModel):
     preds: List[Previsao] = Field(...)
 
 class RestrictionMetar(BaseModel):
-    estacao: Optinal[str] = None
-    data: Optional[str] = None
-    pressao: Option[float]= None
+    estacao: Optional[str] = None
+    dia: Optional[int] = None
+    mes: Optional[int] = None
+    ano: Optional[int] = None
+    pressao: Optional[float]= None
     temperatura: Optional[float] = None
     tempo: Optional[str] = None
-    tempo_desc: Optional[str] = None
     umidade: Optional[float] = None
-    vento_dir: Optional[str] = None
+    vento_dir_seno: Optional[flaot] = None
+    vento_dir_cosseno: Optional[float] = None
     vento_int: Optional[int] = None
     visibilidade: Optional[int] = None
 
@@ -47,13 +57,14 @@ class RestrictionPrevisao(BaseModel):
     maxima: Optional[str] = None
     minima: Optional[str] = None
     iuv: Optional[str] = None
+    diferenca_dias: Optional[int] = None
 
 class StatusMessage(BaseModel):
     status: bool = Field(...)
+    error: Optional[str] = Field(default = None)
 
 class DistribuicaoMetar(BaseModel):
     estacao: str = Field(...)
-    data: str = Field(...)
     pressao: float = Field(...)
     temperatura: float = Field(...)
     tempo: int = Field(...)
@@ -64,5 +75,5 @@ class DistribuicaoMetar(BaseModel):
     umidade: float = Field(...)
     visibilidade: float = Field(...)
 
-class DistribuicoesMetar(BaseModel):
+class DistribuicoesPost(BaseModel):
     items: List[DistribuicaoMetar] = Field(...)

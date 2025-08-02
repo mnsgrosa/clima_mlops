@@ -10,6 +10,7 @@ class DBHandler:
         self.dbname = dbname
         self.schema = schema
         self.exists = self.check_db()
+        self.dfs = {}
         
         if self.exists:
             self.logger.info('Database already exists')
@@ -54,7 +55,10 @@ class DBHandler:
             if connection:
                 connection.close()
 
-    def insert_one(self, table, columns, value):
+    def upsert_one(self, table = None, columns: List[str] = [], value = None):
+        if value is None or table is None or columns is None:
+            return False
+
         try:
             self.logger.info(f'Starting the insertion @ {table} with {columns} of 1 row')
             query = self.create_upsert_query(table, columns)
@@ -66,19 +70,7 @@ class DBHandler:
             self.logger.error(f'Error inserting @ {table} with {columns}: {e}')
             return False
 
-    def insert_multiple(self, table, columns, values):
-        try:
-            self.logger.info(f'Starting the insertion @ {table} with {columns} of {len(values)} rows')
-            query = self.create_upsert_query(table, columns)
-            with self.get_cursor() as cursor:
-                cursor.executemany(query, values)
-            self.logger.info(f'Done the insertion @ {len(values)} rows')
-            return True
-        except Exception as e:
-            self.logger.error(f'Error inserting @ {table} with {columns} of {len(values)} rows: {e}')
-            return False
-
-    def get_data(self, table, table, columns, restriction: Dict[str, str]):
+    def get_data(self, table: str = 'metar', columns: List[str] = [], restriction: Dict[str, str] = {}):
         try:
             self.logger.info(f'Getting data from {columns} from {table}')
             if columns is None:
@@ -97,6 +89,7 @@ class DBHandler:
             self.logger.info(f'Got {len(data)} rows from {table}')
             columns = list(data[0].keys())
             data = pd.DataFrame(columns = columns, data = data)
+            self.dfs[table] = data
             return data
         except Exception as e:
             self.logger.error(f'Error getting data from {table}: {e}')
@@ -136,22 +129,17 @@ class DBHandler:
             self.logging.info(f'creating tables')
             with self.get_cursor() as cursor:
                 cursor.execute(f'''
-                CREATE TABLE {self.schema}.cidades(
-                    cidade VARCHAR(255),
-                    uf VARCHAR(2),
-                    id INT PRIMARY KEY
-                )
-                ''')
-                
-                cursor.execute(f'''
                 CREATE TABLE {self.schema}.metar(
                     estacao VARCHAR(4) PRIMARY KEY,
-                    data DATE DEFAULT CURRENT_DATE,
+                    dia INT,
+                    mes INT,
+                    ano INT,
                     pressao FLOAT,
-                    tempo VARCHAR(4),
-                    temp_desc VARCHAR(255),
-                    umidade FLOAT,
-                    vento_dir INT,
+                    temperatura FLOAT,
+                    tempo VARCHAR(10),
+                    umidade Float,
+                    vento_dir_seno FLOAT,
+                    vento_dir_cosseno FLOAT,
                     vento_int FLOAT,
                     visibilidade FLOAT
                 )
@@ -161,25 +149,13 @@ class DBHandler:
                 CREATE TABLE {self.schema}.pred_estacao (
                     cidade VARCHAR(255) PRIMARY KEY,
                     data DATE DEFAULT CURRENT_DATE,
-                    dia DATE DEFAULT DAY(CURRENT_DATE),
+                    dia_previsao DATE DEFAULT DAY(CURRENT_DATE),
                     tempo VARCHAR(255),
                     temp_min FLOAT,
                     temp_max FLOAT,
-                    iuv FLOAT
+                    iuv FLOAT,
+                    diferenca_dias INT,
                     FOREIGN KEY (cidade) REFERENCES {self.schema}.cidades(cidade)
-                ''')
-
-                cursor.execute(f'''
-                CREATE TABLE {self.schema}.distribuicoes_metar (
-                    pressao FLOAT,
-                    temperatura FLOAT,
-                    tempo FLOAT,
-                    vento_dir_seno FLOAT,
-                    vento_dir_cosseno FLOAT,
-                    vento_int FLOAT,
-                    umidade FLOAT,
-                    visibilidade FLOAT
-                )
                 ''')
 
             self.logger.info(f'Tables created @ {self.dbname} {self.schema}')
@@ -194,26 +170,16 @@ class DBHandler:
         query += ', '.join(columns)
         query += 'VALUES ('
         for item in columns:
-            query += '%s, '
+            query += f'%{item}, '
         query += ')'
         self.logger.info(f'Query done: {query}')
         return query
 
-    def upsert_data(self, table: str, columns: List[str], values: List[Any]):
-        self.logger.info(f'Trying to upsert @ {table} with {columns} of 1 row')
-        try:
-            query = self.create_upsert_query(table, columns)
-            self.logger.info('Starting the upsert')
-            with connection.cursor() as cursor:
-                cursor.execute(query, data)
-            self.logger.info(f'Upsert done @ {table}')
-            return True 
-
-        except Exception as e:
-            logger.error(f'Error adding item @ {table}: {e}')
+    def upsert_multiple_data(self, table: str = None, columns: List[str] = [], values: List[List[Any]] = []):
+        if table is None or columns is None or values is None:
+            self.logger.error('Invalid arguments')
             return False
-
-    def upsert_multiple_data(self, table: str, columns: List[str], values: List[List[Any]]):
+    
         self.logger.info(f'Trying to upsert @ {table} with {columns} of {len(values)} rows')
         try:
             query = self.create_upsert_query(table, columns)
@@ -225,14 +191,3 @@ class DBHandler:
         except Exception as e:
             self.logger.error(f'Error trying to upsert @ {table} with {columns} of {len(values)} rows')
             return False
-
-
-    def get_code_cidade(self, cidade = 'Recife'):
-        query = f'''
-        SELECT id FROM {self.schema}.cidades
-        WHERE {self.schema}.cidade = {cidade}
-        '''
-        with self.get_cursor() as cursor:
-            cursor.execute(query)
-            data = cursor.fetchone()
-        return data[0]

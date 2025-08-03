@@ -1,51 +1,54 @@
-from prefect import deploy
-from prefect.server.schemas.schedules import CronSchedule
-from flows import metar_flow, previsao_flow, drifting_flow
+from prefect import Flow, aserve
+from api_clima import CPTECApiCaller
 import asyncio
 
 async def create_deployments():
     work_pool_name = 'clima-ops'
 
-    metar = await metar_flow.from_source(
+    metar_flow = await Flow.afrom_source(
         source = '.',
-        entrypoint = 'orchestrate.py:metar_flow'
-    ).deploy(
+        entrypoint = 'clima/orchestration/flows.py:metar_flow'
+    )
+
+    metar = await metar_flow.to_deployment(
         name = 'metar-flow',
-        work_pool_name = work_pool_name,
-        work_queue_name = 'metar-queue',
-        schedule = CronSchedule(
-            cron = '0 * * * *',
-            timezone = 'UTC'
-        )
+        schedule = {
+            'cron':'0 * * * *',
+            'timezone':'UTC'
+        }
     )
 
-    drifiting = await drifting_flow.from_source(
-        source = '.',
-        entrypoint = 'orchestrate.py:drifting_flow'
-    ).deploy(
+    metar_result = await aserve(metar)
+
+    drifting_flow = await Flow.afrom_source(
+        source = './',
+        entrypoint = 'clima/orchestration/flows.py:drifting_flow'
+    )
+
+    drifting = await drifting_flow.to_deployment(
         name = 'drifting-flow',
-        work_pool_name = work_pool_name,
-        work_queue_name = 'drifting-queue',
-        schedule = CronSchedule(
-            cron = '10 * * * *',
-            timezone = 'UTC'
-        )
+        schedule = {
+            'cron':'10 * * * *',
+            'timezone':'UTC'
+        }
     )
 
-    previsao = await previsao_flow.from_source(
-        source = '.',
-        entrypoint = 'orchestrate.py:previsao_flow'
-    ).deploy(
+    drifting_result = await aserve(drifting)
+
+    previsao_flow = await Flow.afrom_source(
+        source = './',
+        entrypoint = 'clima/orchestration/flows.py:previsao_flow'
+    )
+
+    previsao = await previsao_flow.to_deployment(
         name = 'previsao-flow',
-        work_pool_name = work_pool_name,
-        work_queue_name = 'previsao-queue',
-        schedule = CronSchedule(
-            cron = '0 12 * * *',
-            timezone = 'UTC'
-        )
+        schedule = {
+            'cron':'0 12 * * *',
+            'timezone':'UTC'
+        }
     )
 
-
+    previsao_result = await aserve(previsao)
 
 if __name__ == '__main__':
     asyncio.run(create_deployments())

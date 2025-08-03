@@ -1,10 +1,10 @@
 from fastapi import FastAPI
-from schemas import (
-    StatusMessage, RestrictionMetar, RestrictionPrevisao, ResponseGet, MetarsPost, PrevisoesPost, 
+from .schemas import (
+    StatusMessage, RestrictionMetar, RestrictionPrevisao, ResponseGet, MetarPost, PrevisoesPost, 
     DistribuicoesPost, DistribuicaoMetar
 )
-from client.db_handler import DBHandler
-from client.config import DB
+from .client.db_handler import DBHandler
+from .client.config import DB
 from typing import List, Dict, Any
 import pandas as pd
 
@@ -23,11 +23,10 @@ def get_previsao(restricao: RestrictionPrevisao):
     obj = ResponseGet(df = df)
     return obj
 
-@app.post('/post/clima', response_model = StatusMessage)
-def post_metar(tempo: MetarsPost):
+@app.post('/post/metar', response_model = StatusMessage)
+def post_metar(tempo: MetarPost):
     try:
-        colunas = tempo.items[0].model_fields.keys()
-        ans = handler.upsert_data('metar', list(Metar.items.model_fields.keys()), tempo.model_dump())
+        ans = handler.upsert_data('metar', list(Metar.model_fields.keys()), tempo.model_dump())
         return StatusMessage(status = ans)
     except Exception as e:
         return StatusMessage(status = ans, error = e)
@@ -40,3 +39,6 @@ def post_previsao(previsoes: PrevisoesPost):
         return StatusMessage(status = ans)
     except Exception as e:
         return StatusMessage(status = ans, error = e)
+
+if __name__ == '__main__':
+    app.run()

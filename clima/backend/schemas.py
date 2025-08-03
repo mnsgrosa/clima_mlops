@@ -9,7 +9,7 @@ class MetarPost(BaseModel):
     ano: int = Field(...)
     pressao: float = Field(...)
     temperatura: float = Field(...)
-    tempo: str = Field(...)
+    tempo: int = Field(...)
     umidade: float = Field(...)
     vento_dir_seno: float = Field(...)
     vento_dir_cosseno: float = Field(...)
@@ -17,10 +17,10 @@ class MetarPost(BaseModel):
     visibilidade: float = Field(...)
 
 class MetarsPost(BaseModel):
-    items: List[Metar] = Field(...)
+    items: List[MetarPost] = Field(...)
 
 class ResponseGet(BaseModel):
-    df: DataFrame = Field(...)
+    df: Dict[str, Any] = Field(...)
 
 class Previsao(BaseModel):
     cidade: str = Field(...)
@@ -44,7 +44,7 @@ class RestrictionMetar(BaseModel):
     temperatura: Optional[float] = None
     tempo: Optional[str] = None
     umidade: Optional[float] = None
-    vento_dir_seno: Optional[flaot] = None
+    vento_dir_seno: Optional[float] = None
     vento_dir_cosseno: Optional[float] = None
     vento_int: Optional[int] = None
     visibilidade: Optional[int] = None

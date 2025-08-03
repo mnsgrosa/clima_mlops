@@ -1,24 +1,19 @@
 import psycopg2
 import logging
 import pandas as pd
+from contextlib import contextmanager
 from typing import List, Dict, Any
 
 class DBHandler:
     def __init__(self, config: Dict[str, str], dbname:str = 'clima', schema:str = 'clima_schema'):
         self.config = config
-        self.logger = init_logger(self)
+        self.logger = self.init_logger()
         self.dbname = dbname
         self.schema = schema
-        self.exists = self.check_db()
+        self.create_db()
+        self.create_schema()
+        self.create_tables()
         self.dfs = {}
-        
-        if self.exists:
-            self.logger.info('Database already exists')
-        else:
-            self.logger.info('Database does not exist')
-            self.create_db()
-            self.create_schema()
-            self.create_tables()
 
         self.columns_metar = ['estacao', 'data', 'pressao', 'temperatura', 'tempo', 'tempo_desc', 'umidade', 'vento_dir', 'vento_int', 'visibilidade']
         self.columns_pred = ['cidade', 'data', 'dia', 'tempo', 'maxima', 'minima', 'iuv']
@@ -30,25 +25,25 @@ class DBHandler:
         file_handler = logging.FileHandler('app.log')
         file_handler.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        file_handler.setFormatter(self.formatter) 
-        logger.addHandler(self.file_handler)
+        file_handler.setFormatter(formatter) 
+        logger.addHandler(file_handler)
         
         return logger
 
+    @contextmanager
     def get_cursor(self):
         connection = None
         cursor = None
-
         try:
             connection = psycopg2.connect(**self.config)
             cursor = connection.cursor()
-
             yield cursor
-
-            cursor.commit()
-            conneciton.commit()
+            connection.commit()
         except Exception as e:
+            if connection:
+                connection.rollback()  # Rollback on error
             self.logger.error(f'Error while using the cursor: {e}')
+            raise  
         finally:
             if cursor:
                 cursor.close()
@@ -94,13 +89,6 @@ class DBHandler:
         except Exception as e:
             self.logger.error(f'Error getting data from {table}: {e}')
             return None
-    
-    def check_db(self,):
-        with self.get_cursor() as cursor:
-            cursor.execute(f'SELECT 1 FROM pg_database WHERE datname = {self.dbname};')
-        self.exists = cursor.fetchone() is not None
-        self.logger.info(f'Database {self.dbname} exists: {self.exists}')
-        return self.exists
 
     def create_db(self):
         try:
@@ -110,7 +98,7 @@ class DBHandler:
             self.logging.info(f'Database {self.dbname} created')
             return True
         except Exception as e:
-            logger.error(f'Error creating the db: {e}')
+            self.logger.error(f'Error creating the db: {e}')
             return False
 
     def create_schema(self):
@@ -121,7 +109,7 @@ class DBHandler:
             self.logging.info(f'Schema {self.schema} created')
             return True
         except Exception as e:
-            logger.error(f'Error creating the schema: {e}')
+            self.logger.error(f'Error creating the schema: {e}')
             return False
 
     def create_tables(self):
@@ -161,7 +149,7 @@ class DBHandler:
             self.logger.info(f'Tables created @ {self.dbname} {self.schema}')
             return True
         except Exception as e:
-            logger.error(f'Error creating the tables: {e}')
+            self.logger.error(f'Error creating the tables: {e}')
             return False
 
     def create_upsert_query(self, table: str, columns: List[str]):

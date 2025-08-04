@@ -119,11 +119,27 @@ class DBHandler:
                 cursor.execute(f'''
                 CREATE TABLE {self.schema}.metar(
                     estacao VARCHAR(4) PRIMARY KEY,
-                    atualizado_em DATE DEFAULT CURRENT_DATE,
+                    dia INT,
+                    mes INT,
+                    ano INT,
                     pressao FLOAT,
                     temperatura FLOAT,
                     tempo VARCHAR(10),
                     umidade Float,
+                    vento_dir_seno FLOAT,
+                    vento_dir_cosseno FLOAT,
+                    vento_int FLOAT,
+                    visibilidade FLOAT
+                )
+                ''')
+
+                cursor.execute(f'''
+                CREATE TABLE {self.schema}.metar_dist(
+                    estacao VARCHAR(4) PRIMARY KEY,
+                    pressao FLOAT,
+                    temperatura FLOAT,
+                    tempo VARCHAR(10),
+                    umidade Float
                     vento_dir_seno FLOAT,
                     vento_dir_cosseno FLOAT,
                     vento_int FLOAT,

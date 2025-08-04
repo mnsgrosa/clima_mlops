@@ -80,9 +80,9 @@ async def post_lattest_previsao_api(data) -> State:
         async with httpx.AsyncClient() as client:
             response = await client.post(URL + '/post/previsao', json = data)
             response.raise_for_status()
-        return Completed(message = 'Previsao flow finished successfully') if response.json()['status'] else Failed(message = 'Failed to post')
+        return True if response.json()['status'] else False
     except Exception as e:
-        return Failed(message = f'Failed previsao flow due to:{e}')
+        return False
 
 
 @flow(log_prints = True)
@@ -90,6 +90,26 @@ async def previsao_flow():
     caller = await get_caller(previsao = True, cidade = 'Recife')
     result = await post_lattest_previsao_api(caller.previsao)
     return result
+
+@task
+async def get_all_preds():
+    async with httpx.AsyncClient() as client:
+        response = await client.get(URL + '/get/previsao')
+        response.raise_for_status()
+    return response.df
+
+@task
+async def get_dist():
+    pass
+
+@task
+async def post_dist():
+    pass
+
+
+@flow(log_prints = True)
+async def check_metrics():
+    pass
 
 @task
 async def get_metar(estacao: str = 'SBRF') -> pd.DataFrame:
@@ -106,7 +126,7 @@ async def drifting(data):
     for col in data.select_dtypes(include = ['float64', 'int64']).columns:
         temp = kstest(data[col].values, 'norm', random_state = 42).pvalue
         if temp < 0.05:
-            return True
+            return Completed
     return False
 
 @flow(log_prints = True)
@@ -114,3 +134,7 @@ async def drifting_flow():
     data = await get_metar()
     result = await drifting(data)
     return result
+
+@flow(log_prints = True)
+async def decision_flow():
+    pass

@@ -24,13 +24,12 @@ class ResponseGet(BaseModel):
 
 class Previsao(BaseModel):
     cidade: str = Field(...)
+    estado: str = Field(...)
     data: str = Field(...)
-    dia: str = Field(...)
-    tempo: str = Field(...)
-    maxima: float = Field(...)
-    minima: float = Field(...)
-    iuv: float = Field(...)
-    distancia: int = Field(...)
+    atualizacao: str = Field(...)
+    temp_min: float = Field(...)
+    temp_max: float = Field(...)
+    indice_uv: float = Field(...)
 
 class PrevisoesPost(BaseModel):
     preds: List[Previsao] = Field(...)
@@ -63,7 +62,7 @@ class StatusMessage(BaseModel):
     status: bool = Field(...)
     error: Optional[str] = Field(default = None)
 
-class DistribuicaoMetar(BaseModel):
+class DistribuicaoPost(BaseModel):
     estacao: str = Field(...)
     pressao: float = Field(...)
     temperatura: float = Field(...)
@@ -72,8 +71,15 @@ class DistribuicaoMetar(BaseModel):
     vento_dir_seno: float = Field(...)
     vento_dir_cosseno: float = Field(...)
     vento_int: float = Field(...)
-    umidade: float = Field(...)
     visibilidade: float = Field(...)
 
-class DistribuicoesPost(BaseModel):
-    items: List[DistribuicaoMetar] = Field(...)
+class RestrictionDistribuicoes(BaseModel):
+    estacao: Optional[str] = None
+    pressao: Optional[float] = None
+    temperatura: Optional[float] = None
+    tempo: Optional[int] = None
+    umidade: Optional[float] = None
+    vento_dir_seno: Optional[float] = None
+    vento_dir_cosseno: Optional[float] = None
+    vento_int: Optional[float] = None
+    visibilidade: Optional[float] = None

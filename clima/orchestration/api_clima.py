@@ -37,7 +37,7 @@ class CPTECApiCaller:
             "Sergipe": "Aracaju",
             "Tocantins": "Palmas"
         }
-        self.metars = self.get_metar()
+        self.metars_raw = self.get_metar()
         self.raw = self.get_raw_data()
         self.cidade_codes = {data.get('cidade'):data.get('id') for data in self.raw}
         self.codes = self.get_estacoes()
@@ -47,8 +47,6 @@ class CPTECApiCaller:
             self.previsao = self.get_previsao(cidade)
         else:
             self.metar = self.get_clima_capitais()
-    
-
 
     def get_metar(self):
         try:
@@ -84,7 +82,7 @@ class CPTECApiCaller:
     def get_clima_capitais(self) -> List[Dict[str, Any]]:
         try:
             tempo = []
-            for metar in self.metars:
+            for metar in self.metars_raw:
                 tempo.append([
                         metar.get('codigo_icao'),
                         metar.get('atualizado_em'),

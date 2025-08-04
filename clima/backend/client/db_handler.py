@@ -41,7 +41,7 @@ class DBHandler:
             connection.commit()
         except Exception as e:
             if connection:
-                connection.rollback()  # Rollback on error
+                connection.rollback()
             self.logger.error(f'Error while using the cursor: {e}')
             raise  
         finally:
@@ -119,9 +119,7 @@ class DBHandler:
                 cursor.execute(f'''
                 CREATE TABLE {self.schema}.metar(
                     estacao VARCHAR(4) PRIMARY KEY,
-                    dia INT,
-                    mes INT,
-                    ano INT,
+                    atualizado_em DATE DEFAULT CURRENT_DATE,
                     pressao FLOAT,
                     temperatura FLOAT,
                     tempo VARCHAR(10),
@@ -134,16 +132,14 @@ class DBHandler:
                 ''')
 
                 cursor.execute(f'''
-                CREATE TABLE {self.schema}.pred_estacao (
+                CREATE TABLE {self.schema}.pred_cidade (
                     cidade VARCHAR(255) PRIMARY KEY,
-                    data DATE DEFAULT CURRENT_DATE,
-                    dia_previsao DATE DEFAULT DAY(CURRENT_DATE),
-                    tempo VARCHAR(255),
+                    estado VARCHAR(255),
+                    atualizacao DATE DEFAULT CURRENT_DATE,
+                    data DATE NOT NULL,
                     temp_min FLOAT,
                     temp_max FLOAT,
-                    iuv FLOAT,
-                    diferenca_dias INT,
-                    FOREIGN KEY (cidade) REFERENCES {self.schema}.cidades(cidade)
+                    indice_uv FLOAT
                 ''')
 
             self.logger.info(f'Tables created @ {self.dbname} {self.schema}')

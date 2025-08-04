@@ -4,73 +4,124 @@ import pandas as pd
 import logging
 import psycopg2
 from typing import List, Dict, Any
-from bs4 import BeautifulSoup
 
 class CPTECApiCaller:
-    def __init__(self):
-        self.url = 'http://servicos.cptec.inpe.br/XML'
-        self.cidades_dict = self.scrape_cidades()
+    def __init__(self, previsao:bool = False, cidade:str = None):
+        self.url = 'https://brasilapi.com.br/api/cptec/v1/'
+        self.capitais = {
+            "Acre": "Rio Branco",
+            "Alagoas": "Maceió",
+            "Amapá": "Macapá",
+            "Amazonas": "Manaus",
+            "Bahia": "Salvador",
+            "Ceará": "Fortaleza",
+            "Distrito Federal": "Brasília",
+            "Espírito Santo": "Vitória",
+            "Goiás": "Goiânia",
+            "Maranhão": "São Luís",
+            "Mato Grosso": "Cuiabá",
+            "Mato Grosso do Sul": "Campo Grande",
+            "Minas Gerais": "Belo Horizonte",
+            "Pará": "Belém",
+            "Paraíba": "João Pessoa",
+            "Paraná": "Curitiba",
+            "Pernambuco": "Recife",
+            "Piauí": "Teresina",
+            "Rio de Janeiro": "Rio de Janeiro",
+            "Rio Grande do Norte": "Natal",
+            "Rio Grande do Sul": "Porto Alegre",
+            "Rondônia": "Porto Velho",
+            "Roraima": "Boa Vista",
+            "Santa Catarina": "Florianópolis",
+            "São Paulo": "São Paulo",
+            "Sergipe": "Aracaju",
+            "Tocantins": "Palmas"
+        }
+        self.metars = self.get_metar()
+        self.raw = self.get_raw_data()
+        self.cidade_codes = {data.get('cidade'):data.get('id') for data in self.raw}
+        self.codes = self.get_estacoes()
+        self.cidade_estado = {data.get('cidade'):data.get('estado') for data in self.raw}
+        self.estados_codes = get_estados_codes()
+        if previsao:
+            self.previsao = self.get_previsao(cidade)
+        else:
+            self.metar = self.get_clima_capitais()
+    
 
-    def scrape_cidades(self) -> Dict[str, Dict[str, str]]:
-        with httpx.Client() as client:
-            response = client.get(self.url + '/listaCidades')
-            response.raise_for_status()
-        data = response.text
-        soup = BeautifulSoup(data, 'xml')
-        cidades = soup.find('cidades').find_all('cidade')
-        cidades_dict = {}
-        for cidade in cidades:
-            cidades_dict[cidade.find('nome').text] = {'uf':cidade.find('uf').text, 'id':cidade.find('id').text}
-        return cidades_dict
 
-    def get_metar(self, estacao = 'SBRF') -> Dict[str, Any]:
+    def get_metar(self):
         try:
             with httpx.Client() as client:
-                response = client.get(self.url + f'/estacao/{estacao}/condicoesAtuais.xml')
+                response = client.get(self.url + '/clima/capital')
                 response.raise_for_status()
+            metars = response.json()
+            return metars
+        except:
+            return []
+
+    def get_estacoes_capitais(self):
+        try:
+            estacoes_code = []
+
+            for metar in self.metars:
+                estacoes_code.append(metar.get('codigo_icao'))
             
-            soup = BeautifulSoup(response.text)
-            metar = soup.find('METAR')
-    
-            tempo = {
-                    'estacao': estacao,
-                    'data': metar.find('atualizacao').text,
-                    'pressao': float(metar.find('pressao').text),
-                    'temperatura': float(metar.find('temperatura').text),
-                    'tempo':  metar.find('tempo').text,
-                    'umidade': float(metar.find('umidade').text),
-                    'vento_dir': float(metar.find('vento_dir').text),
-                    'vento_int': float(metar.find('vento_int').text),
-                    'visibilidade': float(metar.find('visibilidade').text)
-            }
-            
+            return estacoes_code
         except Exception as e:
-            tempo = {}
+            return []
+            
+    def get_raw_data(self):
+        try:
+            with httpx.Client() as client:
+                response = client.get(self.url + '/cidade')
+                response.raise_for_status()
+            raw = response.json()
+            return raw
+        except:
+            return []
+
+    def get_clima_capitais(self) -> List[Dict[str, Any]]:
+        try:
+            tempo = []
+            for metar in self.metars:
+                tempo.append([
+                        metar.get('codigo_icao'),
+                        metar.get('atualizado_em'),
+                        metar.get('pressao_atmosferica'),
+                        metar.get('temp'),
+                        metar.get('condicao'),
+                        metar.get('umidade'),
+                        metar.get('direcao_vento'),
+                        metar.get('vento'),
+                        metar.get('visibilidade')
+                ])
+        except Exception as e:
+            tempo = []
         return tempo
 
     def get_previsao(self, cidade: str = 'Recife') -> Dict[str, Any]:
         with httpx.Client() as client:
-            response = client.get(self.url + f"/cidade/{self.cidades_dict[cidade]['id']}/previsao.xml")
+            response = client.get(self.url + f"/clima/previsao/{self.cidade_codes[cidade]}")
             response.raise_for_status()
         
-        soup = BeautifulSoup(response.text)
-        data = soup.find('atualizacao')
-        
-        previsoes = soup.find_all('previsao')
-        previsoes_dict = {}
-        previsao_retorno = []
+        data = response.json()
+        estado = data.get('estado')
+        atualizacao = data.get('atualizado_em')
+        previsoes = data.get('clima')
 
-        for distancia, previsao in enumerate(previsoes):
-            previsao_retorno.append({
+        retorno = []
+
+        for previsao in previsoes:
+            retorno.append({
                 'cidade':cidade,
-                'data':data,
-                'dia_previsao':previsao.find('dia').text,
-                'tempo':previsao.find('tempo').text,
-                'temp_min':previsao.find('minima').text,
-                'temp_max':previsao.find('maxima').text,
-                'iuv':previsao.find('iuv').text,
-                'diferenca_dias':distancia + 1
-                }
-            )
-        
-        return previsao_retorno
+                'estado':estado,
+                'atualizacao':atualizacao,
+                'data':previsao.get('data'),
+                'temp_min':previsao.get('min'),
+                'temp_max':previsao.get('max'),
+                'indice_uv':previsao.get('indice_uv'),
+            }
+        )
+
+        return retorno

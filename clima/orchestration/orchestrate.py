@@ -1,49 +1,30 @@
-from prefect import Flow, aserve
+from flows import metar_flow, drifting_flow
 from api_clima import CPTECApiCaller
 import asyncio
 
 async def create_deployments():
     work_pool_name = 'clima-ops'
 
-    metar_flow = await Flow.afrom_source(
+    metar_result = await metar_flow.afrom_source(
         source = '.',
         entrypoint = 'clima/orchestration/flows.py:metar_flow'
-    )
-
-    metar = await metar_flow.to_deployment(
+    ).deploy(
         name = 'metar-flow',
+        work_pool_name = work_pool_name,
         schedule = {
             'cron':'0 * * * *',
             'timezone':'UTC'
         }
     )
 
-    metar_result = await aserve(metar)
-
-    drifting_flow = await Flow.afrom_source(
+    drifting_flow = await  drifting_flow.afrom_source(
         source = './',
         entrypoint = 'clima/orchestration/flows.py:drifting_flow'
-    )
-
-    drifting = await drifting_flow.to_deployment(
+    ).to_deployment(
         name = 'drifting-flow',
+        work_pool_name = work_pool_name,
         schedule = {
             'cron':'10 * * * *',
-            'timezone':'UTC'
-        }
-    )
-
-    drifting_result = await aserve(drifting)
-
-    previsao_flow = await Flow.afrom_source(
-        source = './',
-        entrypoint = 'clima/orchestration/flows.py:previsao_flow'
-    )
-
-    previsao = await previsao_flow.to_deployment(
-        name = 'previsao-flow',
-        schedule = {
-            'cron':'0 12 * * *',
             'timezone':'UTC'
         }
     )

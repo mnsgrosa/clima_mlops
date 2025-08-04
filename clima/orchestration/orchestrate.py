@@ -29,7 +29,5 @@ async def create_deployments():
         }
     )
 
-    previsao_result = await aserve(previsao)
-
 if __name__ == '__main__':
     asyncio.run(create_deployments())

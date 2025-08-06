@@ -8,6 +8,7 @@ import httpx
 from typing import Dict, List, Any
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
+from drift_tool import drift_detector
 
 URL = 'http://localhost:8000'
 
@@ -56,9 +57,9 @@ async def post_metar_etl(data) -> State:
         async with httpx.AsyncClient() as client:
             response = await client.post(URL + '/post/metar', json = temp)
             response.raise_for_status()
-        return Completed(message = 'Metar flow finished succesfully')
+        return True
     except Exception as e:
-        return Failed(message = f'Metar flow failed due to:{e}')
+        return False
 
 @flow(log_prints  = True)
 async def metar_flow():
@@ -66,13 +67,13 @@ async def metar_flow():
     data = pd.DataFrame(caller.metar, columns = [
         'estacao', 'atualizado_em', 'pressao', 'temperatura', 
         'tempo', 'umidade', 'vento_dir', 'vento_int', 'visibilidade'
-    ])
+        ])
     if not data.empty:
         data = await metar_etl(data)
         state = await post_metar_etl(data)
         return state
     else:
-        return Failed(message = 'No data to post')
+        return False
 
 @task
 async def post_lattest_previsao_api(data) -> State:
@@ -89,27 +90,7 @@ async def post_lattest_previsao_api(data) -> State:
 async def previsao_flow():
     caller = await get_caller(previsao = True, cidade = 'Recife')
     result = await post_lattest_previsao_api(caller.previsao)
-    return result
-
-@task
-async def get_all_preds():
-    async with httpx.AsyncClient() as client:
-        response = await client.get(URL + '/get/previsao')
-        response.raise_for_status()
-    return response.df
-
-@task
-async def get_dist():
-    pass
-
-@task
-async def post_dist():
-    pass
-
-
-@flow(log_prints = True)
-async def check_metrics():
-    pass
+    return result.json()
 
 @task
 async def get_metar(estacao: str = 'SBRF') -> pd.DataFrame:
@@ -122,19 +103,39 @@ async def get_metar(estacao: str = 'SBRF') -> pd.DataFrame:
         return pd.DataFrame()
 
 @task
-async def drifting(data):
-    for col in data.select_dtypes(include = ['float64', 'int64']).columns:
-        temp = kstest(data[col].values, 'norm', random_state = 42).pvalue
-        if temp < 0.05:
-            return Completed
-    return False
+async def check_metrics(new_data, old_data):
+    return drift_detector(new_data, old_data)
 
 @flow(log_prints = True)
-async def drifting_flow():
+async def check_drift_flow():
     data = await get_metar()
-    result = await drifting(data)
-    return result
+    old_data = data.iloc[:-31]
+    new_data = data.iloc[-31:]
+    drift = await check_metrics(new_data, old_data)
+    return drift, data
+
+@task
+async def train(data):
+    #chamar o modelo e treinar por procura
+    # de hyperparametros
+    pass
 
 @flow(log_prints = True)
-async def decision_flow():
+def train_flow():
+    #fazer o treinamento
     pass
+
+@flow(log_prints = True)
+async def decision_flow(data):
+    if metar_flow():
+        drift, data = await check_drift_flow()
+        if drift:
+            retrain = await retrain_flow()
+        pred = await pred_flow()
+        
+@task
+async def get_all_preds():
+    async with httpx.AsyncClient() as client:
+        response = await client.get(URL + '/get/previsao')
+        response.raise_for_status()
+    return response.json()

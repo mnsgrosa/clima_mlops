@@ -50,7 +50,7 @@ def post_previsao(previsoes: PrevisoesPost):
 def post_distribuicao(distribuicao: DistribuicaoPost):
     try:
         colunas = distribuicoes.model_fields.keys()
-        ans = handler.upsert_multiple_data('metar_dist', colunas, distribuicoes.model_dump())
+        ans = handler.upsert_data('metar_dist', colunas, distribuicoes.model_dump())
         return StatusMessage(status = ans)
     except Exception as e:
         return StatusMessage(status = False, error = e)

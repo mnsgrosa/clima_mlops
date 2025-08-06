@@ -5,6 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "alibi-detect>=0.12.0",
+    "frouros>=0.9.0",
     "httpx>=0.28.1",
     "prefect[docker]>=3.4.11",
 ]

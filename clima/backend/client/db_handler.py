@@ -50,7 +50,7 @@ class DBHandler:
             if connection:
                 connection.close()
 
-    def upsert_one(self, table = None, columns: List[str] = [], value = None):
+    def upsert_data(self, table = None, columns: List[str] = [], value = None):
         if value is None or table is None or columns is None:
             return False
 
@@ -126,20 +126,6 @@ class DBHandler:
                     temperatura FLOAT,
                     tempo VARCHAR(10),
                     umidade Float,
-                    vento_dir_seno FLOAT,
-                    vento_dir_cosseno FLOAT,
-                    vento_int FLOAT,
-                    visibilidade FLOAT
-                )
-                ''')
-
-                cursor.execute(f'''
-                CREATE TABLE {self.schema}.metar_dist(
-                    estacao VARCHAR(4) PRIMARY KEY,
-                    pressao FLOAT,
-                    temperatura FLOAT,
-                    tempo VARCHAR(10),
-                    umidade Float
                     vento_dir_seno FLOAT,
                     vento_dir_cosseno FLOAT,
                     vento_int FLOAT,

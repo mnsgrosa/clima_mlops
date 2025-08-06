@@ -2,7 +2,7 @@
 ![image](./images/image.png)
 
 # CPTec ta vivo!!!
-(APIbrasil esta hospedando agora!)[https://brasilapi.com.br/docs#tag/CPTEC/operation/searchcities(/cptec/v1/cidade/:cityName)]
+![APIbrasil esta hospedando agora!](https://brasilapi.com.br/docs#tag/CPTEC/)
 
 ## Descrição (Português)
 

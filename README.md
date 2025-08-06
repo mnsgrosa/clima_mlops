@@ -1,5 +1,5 @@
 # Clima MLOps
-![image](image.png)
+![image](./image.png)
 
 # CPTec ta vivo!!!
 (APIbrasil esta hospedando agora!)[https://brasilapi.com.br/docs#tag/CPTEC/operation/searchcities(/cptec/v1/cidade/:cityName)]

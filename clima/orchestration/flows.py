@@ -9,6 +9,7 @@ from typing import Dict, List, Any
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from drift_tool import drift_detector
+from model.train_class import MyModel
 
 URL = 'http://localhost:8000'
 
@@ -28,6 +29,7 @@ async def metar_etl(data: pd.DataFrame) -> pd.DataFrame:
     temp['dia'] = temp['atualizado_em'].dt.day.astype(int)
     temp['mes'] = temp['atualizado_em'].dt.month.astype(int)
     temp['ano'] = temp['atualizado_em'].dt.year.astype(int)
+
     temp.drop(columns = 'atualizado_em', inplace = True)
 
     le = LabelEncoder()
@@ -115,10 +117,38 @@ async def check_drift_flow():
     return drift, data
 
 @task
+async def train_etl(df):
+    data = df.copy()
+    colunas = ['temperatura', 'umidade', 'vento_int', 'visibilidade', 'vento_dir_seno', 'vento_dir_cosseno', 'pressao']
+    colunas_add = []
+    for coluna in colunas:
+        data[f'{coluna}_media_dia'] = data[coluna].rolling(window = 24).mean()
+        data[f'{coluna}_std_dia'] = data[coluna].rolling(window = 24).std()
+        data[f'{coluna}_min_dia'] = data[coluna].rolling(window = 24).min()
+        data[f'{coluna}_max_dia'] = data[coluna].rolling(window = 24).max()
+        data[f'{coluna}_lag_dia'] = data[coluna].shift(24)
+
+    agg_diario = data['temperatura'].resample('D').agg(['max', 'min'])
+    data['target_max'] = agg_diario.max.shift(-24)
+    data['target_min'] = agg_diario.min.shift(-24)
+
+    final_data = data.at_time('23:00').copy()
+    
+    return final_data
+
+@task
 async def train(data):
-    #chamar o modelo e treinar por procura
-    # de hyperparametros
-    pass
+    model = MyModel()
+    X_train = data:iloc[:-30]
+    y_train = data.iloc[:-30]
+    X_eval = data.iloc[-30:]
+    y_eval = data.iloc[-30:]
+    await model.fit(X_train, y_train, X_eval, y_eval, mode = 'max')
+    await model.fit(X_train, y_train, X_eval, y_eval, mode = 'min')
+    return model
+
+@task
+async def predict() 
 
 @flow(log_prints = True)
 def train_flow():

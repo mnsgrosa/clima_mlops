@@ -134,6 +134,48 @@ class DBHandler:
                 ''')
 
                 cursor.execute(f'''
+                CREATE TABLE {self.schema}.daily_etl (
+                    estacao VARCHAR(4) PRIMARY KEY,
+                    temperatura_media_dia FLOAT,
+                    temperatura_std_dia FLOAT,
+                    temperatura_min_dia FLOAT,
+                    temperatura_max_dia FLOAT,
+                    temperatura_lag_dia FLOAT,
+                    umidade_media_dia FLOAT,
+                    umidade_std_dia FLOAT,
+                    umidade_min_dia FLOAT,
+                    umidade_max_dia FLOAT,
+                    umidade_lag_dia FLOAT,
+                    vento_int_media_dia FLOAT,
+                    vento_int_std_dia FLOAT,
+                    vento_int_min_dia FLOAT,
+                    vento_int_max_dia FLOAT,
+                    vento_int_lag_dia FLOAT,
+                    visibilidade_media_dia FLOAT,
+                    visibilidade_std_dia FLOAT,
+                    visibilidade_min_dia FLOAT,
+                    visibilidade_max_dia FLOAT,
+                    visibilidade_lag_dia FLOAT,
+                    pressao_media_dia FLOAT,
+                    pressao_std_dia FLOAT,
+                    pressao_min_dia FLOAT,
+                    pressao_max_dia FLOAT,
+                    pressao_lag_dia FLOAT,
+                    vento_dir_seno_media_dia FLOAT,
+                    vento_dir_seno_std_dia FLOAT,
+                    vento_dir_seno_min_dia FLOAT,
+                    vento_dir_seno_max_dia FLOAT,
+                    vento_dir_seno_lag_dia FLOAT,
+                    vento_dir_cosseno_media_dia FLOAT,
+                    vento_dir_cosseno_std_dia FLOAT,
+                    vento_dir_cosseno_min_dia FLOAT,
+                    vento_dir_cosseno_max_dia FLOAT,
+                    target_max FLOAT,
+                    target_min FLOAT
+                )
+                ''')
+
+                cursor.execute(f'''
                 CREATE TABLE {self.schema}.pred_cidade (
                     cidade VARCHAR(255) PRIMARY KEY,
                     estado VARCHAR(255),

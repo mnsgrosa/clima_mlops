@@ -63,6 +63,7 @@ async def post_metar_etl(data) -> State:
     except Exception as e:
         return False
 
+# first flow to happen -> happens every 2 hours
 @flow(log_prints  = True)
 async def metar_flow():
     caller = await get_caller()
@@ -73,26 +74,10 @@ async def metar_flow():
     if not data.empty:
         data = await metar_etl(data)
         state = await post_metar_etl(data)
-        return state
+        return data
     else:
-        return False
+        return None
 
-@task
-async def post_lattest_previsao_api(data) -> State:
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(URL + '/post/previsao', json = data)
-            response.raise_for_status()
-        return True if response.json()['status'] else False
-    except Exception as e:
-        return False
-
-
-@flow(log_prints = True)
-async def previsao_flow():
-    caller = await get_caller(previsao = True, cidade = 'Recife')
-    result = await post_lattest_previsao_api(caller.previsao)
-    return result.json()
 
 @task
 async def get_metar(estacao: str = 'SBRF') -> pd.DataFrame:
@@ -105,19 +90,7 @@ async def get_metar(estacao: str = 'SBRF') -> pd.DataFrame:
         return pd.DataFrame()
 
 @task
-async def check_metrics(new_data, old_data):
-    return drift_detector(new_data, old_data)
-
-@flow(log_prints = True)
-async def check_drift_flow():
-    data = await get_metar()
-    old_data = data.iloc[:-31]
-    new_data = data.iloc[-31:]
-    drift = await check_metrics(new_data, old_data)
-    return drift, data
-
-@task
-async def train_etl(df):
+async def metar_etl_daily(df, estacao: str = 'SBRF') -> pd.DataFrame:
     data = df.copy()
     colunas = ['temperatura', 'umidade', 'vento_int', 'visibilidade', 'vento_dir_seno', 'vento_dir_cosseno', 'pressao']
     colunas_add = []
@@ -136,24 +109,50 @@ async def train_etl(df):
     
     return final_data
 
+@flow
+async def process_metar_daily():
+
+
+@task
+async def check_metrics(new_data, old_data):
+    return drift_detector(new_data, old_data)
+
+@flow(log_prints = True)
+async def check_drift_flow():
+    data = await get_metar()
+    old_data = data.iloc[:-31]
+    new_data = data.iloc[-31:]
+    drift = await check_metrics(new_data, old_data)
+    return drift, data
+
+@task
+async def train_etl(df):
+   
+
 @task
 async def train(data):
     model = MyModel()
-    X_train = data:iloc[:-30]
-    y_train = data.iloc[:-30]
-    X_eval = data.iloc[-30:]
-    y_eval = data.iloc[-30:]
-    await model.fit(X_train, y_train, X_eval, y_eval, mode = 'max')
-    await model.fit(X_train, y_train, X_eval, y_eval, mode = 'min')
-    return model
+    X_train = data.iloc[:-60].drop(columns = ['target_max', 'target_min'])
+    y_train = data.iloc[:-60]
+    y_train_max = y_train['target_max']
+    y_train_min = y_train['target_min']
+    X_eval = data.iloc[-60:-30].drop(columns = ['target_max', 'target_min'])
+    y_eval = data.iloc[-60:-30]
+    y_eval_max = y_eval['target_max']
+    y_eval_min = y_eval['target_min']
 
-@task
-async def predict() 
+    await model.fit(X_train, y_train_max, X_eval, y_eval_max, mode = 'max')
+    await model.optimize(X_train, y_train_max, X_eval, y_eval_max, mode = 'max')
+    await model.fit(X_train, y_train_min, X_eval, y_eval_min, mode = 'min')
+    await model.optimize(X_train, y_eval_min, X_eval, y_eval_min, mode = 'min')
+    return model 
 
 @flow(log_prints = True)
 def train_flow():
-    #fazer o treinamento
-    pass
+    data = await get_metar()
+    data = await train_etl(data)
+    model = await train(data)
+    return model
 
 @flow(log_prints = True)
 async def decision_flow(data):

@@ -28,6 +28,11 @@ def get_distribuicao(restricao: RestrictionDistribuicoes):
     df = handler.get_data('metar_dist', restricao.model_dump())
     obj = ResponseGet(df = df)
     return obj
+
+@app.get('/get/daily')
+def get_etl(restricao: RestrictionPrevisao):
+    df = handler.get_data('daily_etl', restricao.model_dump())
+    return {'items': df}
     
 @app.post('/post/metar', response_model = StatusMessage)
 def post_metar(tempo: MetarsPost):
@@ -54,6 +59,10 @@ def post_distribuicao(distribuicao: DistribuicaoPost):
         return StatusMessage(status = ans)
     except Exception as e:
         return StatusMessage(status = False, error = e)
+
+@app.post('/post/daily', response_model = StatusMessage)
+def post_daily(daily: DailyPost):
+    try
 
 if __name__ == '__main__':
     app.run()
